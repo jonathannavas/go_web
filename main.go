@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	logs := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 	router := mux.NewRouter()
 
@@ -31,7 +32,8 @@ func main() {
 
 	_ = db.AutoMigrate(&user.User{})
 
-	userService := user.NewService()
+	userRepository := user.NewRepo(logs, db)
+	userService := user.NewService(logs, userRepository)
 	userEndpoints := user.MakeEndpoints(userService)
 
 	router.HandleFunc("/users", userEndpoints.Create).Methods("POST")
