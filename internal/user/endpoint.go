@@ -63,7 +63,7 @@ func makeCreateEndpoint(s Service) Controller {
 			return
 		}
 
-		err = s.Create(userBody.FirstName, userBody.LastName, userBody.Email, userBody.Phone)
+		user, err := s.Create(userBody.FirstName, userBody.LastName, userBody.Email, userBody.Phone)
 
 		if err != nil {
 			w.WriteHeader(400)
@@ -71,7 +71,7 @@ func makeCreateEndpoint(s Service) Controller {
 			return
 		}
 
-		json.NewEncoder(w).Encode(userBody)
+		json.NewEncoder(w).Encode(user)
 	}
 }
 
