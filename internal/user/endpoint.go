@@ -25,6 +25,13 @@ type (
 		Phone     string `json:"phone"`
 	}
 
+	UpdateRequest struct {
+		FirstName *string `json:"first_name"`
+		LastName  *string `json:"last_name"`
+		Email     *string `json:"email"`
+		Phone     *string `json:"phone"`
+	}
+
 	ErrorResponse struct {
 		Error string `json:"error"`
 	}
@@ -108,14 +115,56 @@ func makeGetAllEndpoint(s Service) Controller {
 
 func makeUpdateEndpoint(s Service) Controller {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Print("update users")
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		log.Print("update users service")
+
+		var body UpdateRequest
+
+		err := json.NewDecoder(r.Body).Decode(&body)
+
+		if err != nil {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(ErrorResponse{"Invalid request format"})
+			return
+		}
+
+		if body.FirstName != nil && *body.FirstName == "" {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(ErrorResponse{"First name is required"})
+			return
+		}
+
+		if body.LastName != nil && *body.LastName == "" {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(ErrorResponse{"Last name is required"})
+			return
+		}
+
+		path := mux.Vars(r)
+		id := path["id"]
+
+		if err := s.Update(id, body.FirstName, body.LastName, body.Email, body.Phone); err != nil {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(ErrorResponse{"User doesn't exist"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]string{"data": "success"})
 	}
 }
 
 func makeDeleteEndpoint(s Service) Controller {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Print("delete users")
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		path := mux.Vars(r)
+		id := path["id"]
+
+		err := s.Delete(id)
+
+		if err != nil {
+			w.WriteHeader(404)
+			json.NewEncoder(w).Encode(ErrorResponse{err.Error()})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]string{"data": "success"})
 	}
 }
