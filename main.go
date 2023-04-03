@@ -37,10 +37,10 @@ func main() {
 	userEndpoints := user.MakeEndpoints(userService)
 
 	router.HandleFunc("/users", userEndpoints.Create).Methods("POST")
-	router.HandleFunc("/users", userEndpoints.Get).Methods("GET")
+	router.HandleFunc("/users/{id}", userEndpoints.Get).Methods("GET")
 	router.HandleFunc("/users", userEndpoints.GetAll).Methods("GET")
-	router.HandleFunc("/users", userEndpoints.Update).Methods("PATCH")
-	router.HandleFunc("/users", userEndpoints.Delete).Methods("DELETE")
+	router.HandleFunc("/users/{id}", userEndpoints.Update).Methods("PATCH")
+	router.HandleFunc("/users/{id}", userEndpoints.Delete).Methods("DELETE")
 
 	srv := &http.Server{
 		// Handler:      http.TimeoutHandler(router, time.Second*3, "Timeout!!"),
