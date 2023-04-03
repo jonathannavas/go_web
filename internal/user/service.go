@@ -6,6 +6,8 @@ import (
 
 type Service interface {
 	Create(firstName string, lastName string, email string, phone string) (*User, error)
+	GetAll() ([]User, error)
+	Get(id string) (*User, error)
 }
 
 type service struct {
@@ -37,4 +39,20 @@ func (s service) Create(firstName string, lastName string, email string, phone s
 	}
 
 	return &user, nil
+}
+
+func (s service) GetAll() ([]User, error) {
+	users, err := s.repo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (s service) Get(id string) (*User, error) {
+	user, err := s.repo.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
