@@ -2,20 +2,30 @@ package user
 
 import (
 	"log"
+
+	"github.com/jonathannavas/go_web/internal/domain"
 )
 
-type Service interface {
-	Create(firstName string, lastName string, email string, phone string) (*User, error)
-	GetAll() ([]User, error)
-	Get(id string) (*User, error)
-	Delete(id string) error
-	Update(id string, firstName *string, lastName *string, email *string, phone *string) error
-}
+type (
+	Service interface {
+		Create(firstName string, lastName string, email string, phone string) (*domain.User, error)
+		GetAll(filters Filters, offset, limit int) ([]domain.User, error)
+		Get(id string) (*domain.User, error)
+		Delete(id string) error
+		Update(id string, firstName *string, lastName *string, email *string, phone *string) error
+		Count(filters Filters) (int, error)
+	}
 
-type service struct {
-	log  *log.Logger
-	repo Repository
-}
+	service struct {
+		log  *log.Logger
+		repo Repository
+	}
+
+	Filters struct {
+		FirstName string
+		LastName  string
+	}
+)
 
 func NewService(log *log.Logger, repo Repository) Service {
 	return &service{
@@ -24,10 +34,10 @@ func NewService(log *log.Logger, repo Repository) Service {
 	}
 }
 
-func (s service) Create(firstName string, lastName string, email string, phone string) (*User, error) {
+func (s service) Create(firstName string, lastName string, email string, phone string) (*domain.User, error) {
 	log.Println("Create user service")
 
-	user := User{
+	user := domain.User{
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     email,
@@ -43,16 +53,16 @@ func (s service) Create(firstName string, lastName string, email string, phone s
 	return &user, nil
 }
 
-func (s service) GetAll() ([]User, error) {
+func (s service) GetAll(filters Filters, offset, limit int) ([]domain.User, error) {
 	log.Println("Service Get All")
-	users, err := s.repo.GetAll()
+	users, err := s.repo.GetAll(filters, offset, limit)
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
 }
 
-func (s service) Get(id string) (*User, error) {
+func (s service) Get(id string) (*domain.User, error) {
 	log.Println("Get user service by id:", id)
 	user, err := s.repo.Get(id)
 	if err != nil {
@@ -68,4 +78,8 @@ func (s service) Delete(id string) error {
 
 func (s service) Update(id string, firstName *string, lastName *string, email *string, phone *string) error {
 	return s.repo.Update(id, firstName, lastName, email, phone)
+}
+
+func (s service) Count(filters Filters) (int, error) {
+	return s.repo.Count(filters)
 }

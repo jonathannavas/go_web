@@ -1,18 +1,22 @@
 package user
 
 import (
+	"fmt"
 	"log"
 
-	"github.com/google/uuid"
+	"strings"
+
+	"github.com/jonathannavas/go_web/internal/domain"
 	"gorm.io/gorm"
 )
 
 type Repository interface {
-	Create(user *User) error
-	GetAll() ([]User, error)
-	Get(id string) (*User, error)
+	Create(user *domain.User) error
+	GetAll(filters Filters, offset, limit int) ([]domain.User, error)
+	Get(id string) (*domain.User, error)
 	Delete(id string) error
 	Update(id string, firstName *string, lastName *string, email *string, phone *string) error
+	Count(filters Filters) (int, error)
 }
 
 type repo struct {
@@ -27,9 +31,9 @@ func NewRepo(log *log.Logger, db *gorm.DB) Repository {
 	}
 }
 
-func (repo *repo) Create(user *User) error {
+func (repo *repo) Create(user *domain.User) error {
 
-	user.ID = uuid.New().String()
+	// user.ID = uuid.New().String()
 
 	// result := repo.db.Debug().Create(user)
 	// if result.Error != nil {
@@ -46,17 +50,22 @@ func (repo *repo) Create(user *User) error {
 	return nil
 }
 
-func (repo *repo) GetAll() ([]User, error) {
-	var user []User
-	result := repo.db.Model(&user).Order("created_at desc").Find(&user)
+func (repo *repo) GetAll(filters Filters, offset, limit int) ([]domain.User, error) {
+	var user []domain.User
+
+	tx := repo.db.Model(&user)
+	tx = applyFilters(tx, filters)
+	tx = tx.Limit(limit).Offset(offset)
+	result := tx.Order("created_at desc").Find(&user)
+
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return user, nil
 }
 
-func (repo *repo) Get(id string) (*User, error) {
-	user := User{
+func (repo *repo) Get(id string) (*domain.User, error) {
+	user := domain.User{
 		ID: id,
 	}
 	result := repo.db.First(&user)
@@ -67,7 +76,7 @@ func (repo *repo) Get(id string) (*User, error) {
 }
 
 func (repo *repo) Delete(id string) error {
-	user := User{
+	user := domain.User{
 		ID: id,
 	}
 	result := repo.db.Delete(&user)
@@ -97,10 +106,34 @@ func (repo *repo) Update(id string, firstName *string, lastName *string, email *
 		values["phone"] = phone
 	}
 
-	result := repo.db.Model(&User{}).Where("id = ?", id).Updates(values)
+	result := repo.db.Model(&domain.User{}).Where("id = ?", id).Updates(values)
 	if result.Error != nil {
 		return result.Error
 	}
 
 	return nil
+}
+
+func applyFilters(tx *gorm.DB, filters Filters) *gorm.DB {
+	if filters.FirstName != "" {
+		filters.FirstName = fmt.Sprintf("%%%s%%", strings.ToLower(filters.FirstName))
+		tx = tx.Where("lower(first_name) like ?", filters.FirstName)
+	}
+
+	if filters.LastName != "" {
+		filters.LastName = fmt.Sprintf("%%%s%%", strings.ToLower(filters.LastName))
+		tx = tx.Where("lower(last_name) like ?", filters.LastName)
+	}
+
+	return tx
+}
+
+func (repo *repo) Count(filters Filters) (int, error) {
+	var count int64
+	tx := repo.db.Model(domain.User{})
+	tx = applyFilters(tx, filters)
+	if err := tx.Count(&count).Error; err != nil {
+		return 0, nil
+	}
+	return int(count), nil
 }

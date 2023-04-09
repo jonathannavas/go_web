@@ -1,46 +1,50 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/jonathannavas/go_web/internal/course"
 	"github.com/jonathannavas/go_web/internal/user"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"github.com/jonathannavas/go_web/pkg/bootstrap"
 )
 
 func main() {
-	logs := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 	router := mux.NewRouter()
-
 	_ = godotenv.Load()
 
-	dsn := fmt.Sprintf("%s:%s@(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local",
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASSWORD"),
-		os.Getenv("DATABASE_HOST"),
-		os.Getenv("DATABASE_PORT"),
-		os.Getenv("DATABASE_NAME"))
-	db, _ := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	db = db.Debug()
+	logs := bootstrap.InitLogger()
+	db, err := bootstrap.DBConnection()
 
-	_ = db.AutoMigrate(&user.User{})
+	if err != nil {
+		logs.Fatal(err)
+	}
 
 	userRepository := user.NewRepo(logs, db)
 	userService := user.NewService(logs, userRepository)
 	userEndpoints := user.MakeEndpoints(userService)
+	usersById := "/users/{id}"
+
+	courseRepository := course.NewRepo(logs, db)
+	courseService := course.NewService(logs, courseRepository)
+	courseEndpoints := course.MakeEndpoints(courseService)
+	coursesById := "/courses/{id}"
 
 	router.HandleFunc("/users", userEndpoints.Create).Methods("POST")
-	router.HandleFunc("/users/{id}", userEndpoints.Get).Methods("GET")
+	router.HandleFunc(usersById, userEndpoints.Get).Methods("GET")
 	router.HandleFunc("/users", userEndpoints.GetAll).Methods("GET")
-	router.HandleFunc("/users/{id}", userEndpoints.Update).Methods("PATCH")
-	router.HandleFunc("/users/{id}", userEndpoints.Delete).Methods("DELETE")
+	router.HandleFunc(usersById, userEndpoints.Update).Methods("PATCH")
+	router.HandleFunc(usersById, userEndpoints.Delete).Methods("DELETE")
+
+	router.HandleFunc("/courses", courseEndpoints.Create).Methods("POST")
+	router.HandleFunc(coursesById, courseEndpoints.Get).Methods("GET")
+	router.HandleFunc("/courses", courseEndpoints.GetAll).Methods("GET")
+	router.HandleFunc(coursesById, courseEndpoints.Update).Methods("PATCH")
+	router.HandleFunc(coursesById, courseEndpoints.Delete).Methods("DELETE")
 
 	srv := &http.Server{
 		// Handler:      http.TimeoutHandler(router, time.Second*3, "Timeout!!"),
@@ -50,10 +54,6 @@ func main() {
 		ReadTimeout:  5 * time.Second,
 	}
 
-	err := srv.ListenAndServe()
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(srv.ListenAndServe())
 
 }
