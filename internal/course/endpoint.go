@@ -1,4 +1,4 @@
-package user
+package course
 
 import (
 	"encoding/json"
@@ -12,7 +12,8 @@ import (
 
 type (
 	Controller func(w http.ResponseWriter, r *http.Request)
-	Endpoints  struct {
+
+	Endpoints struct {
 		Create Controller
 		Get    Controller
 		GetAll Controller
@@ -21,17 +22,15 @@ type (
 	}
 
 	CreateRequest struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
-		Phone     string `json:"phone"`
+		Name      string `json:"name"`
+		StartDate string `json:"start_date"`
+		EndDate   string `json:"end_date"`
 	}
 
 	UpdateRequest struct {
-		FirstName *string `json:"first_name"`
-		LastName  *string `json:"last_name"`
-		Email     *string `json:"email"`
-		Phone     *string `json:"phone"`
+		Name      *string `json:"name"`
+		StartDate *string `json:"start_date"`
+		EndDate   *string `json:"end_date"`
 	}
 
 	Response struct {
@@ -55,9 +54,9 @@ func MakeEndpoints(s Service) Endpoints {
 func makeCreateEndpoint(s Service) Controller {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		var userBody CreateRequest
+		var courseBody CreateRequest
 
-		err := json.NewDecoder(r.Body).Decode(&userBody)
+		err := json.NewDecoder(r.Body).Decode(&courseBody)
 
 		if err != nil {
 			w.WriteHeader(400)
@@ -65,27 +64,33 @@ func makeCreateEndpoint(s Service) Controller {
 			return
 		}
 
-		if userBody.FirstName == "" {
+		if courseBody.Name == "" {
 			w.WriteHeader(400)
-			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Firstname is required"})
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Name is required"})
 			return
 		}
 
-		if userBody.LastName == "" {
+		if courseBody.StartDate == "" {
 			w.WriteHeader(400)
-			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Lastname is required"})
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "StartDate is required"})
 			return
 		}
 
-		user, err := s.Create(userBody.FirstName, userBody.LastName, userBody.Email, userBody.Phone)
+		if courseBody.EndDate == "" {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "EndDate is required"})
+			return
+		}
 
+		course, err := s.Create(courseBody.Name, courseBody.StartDate, courseBody.EndDate)
 		if err != nil {
 			w.WriteHeader(400)
 			json.NewEncoder(w).Encode(&Response{Status: 400, Error: err.Error()})
 			return
 		}
 
-		json.NewEncoder(w).Encode(&Response{Status: 201, Data: user})
+		json.NewEncoder(w).Encode(&Response{Status: 201, Data: course})
+
 	}
 }
 
@@ -94,7 +99,7 @@ func makeGetEndpoint(s Service) Controller {
 		path := mux.Vars(r)
 		id := path["id"]
 
-		user, err := s.Get(id)
+		course, err := s.Get(id)
 
 		if err != nil {
 			w.WriteHeader(404)
@@ -102,7 +107,7 @@ func makeGetEndpoint(s Service) Controller {
 			return
 		}
 
-		json.NewEncoder(w).Encode(&Response{Status: 200, Data: user})
+		json.NewEncoder(w).Encode(&Response{Status: 200, Data: course})
 	}
 }
 
@@ -111,8 +116,7 @@ func makeGetAllEndpoint(s Service) Controller {
 
 		queryParams := r.URL.Query()
 		filters := Filters{
-			FirstName: queryParams.Get("first_name"),
-			LastName:  queryParams.Get("last_name"),
+			Name: queryParams.Get("name"),
 		}
 
 		limit, _ := strconv.Atoi(queryParams.Get("limit"))
@@ -132,14 +136,15 @@ func makeGetAllEndpoint(s Service) Controller {
 			return
 		}
 
-		users, err := s.GetAll(filters, meta.Offset(), meta.Limit())
+		courses, err := s.GetAll(filters, meta.Offset(), meta.Limit())
 		if err != nil {
 			w.WriteHeader(400)
 			json.NewEncoder(w).Encode(&Response{Status: 400, Error: err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(&Response{Status: 200, Data: users, Meta: meta})
+		json.NewEncoder(w).Encode(&Response{Status: 200, Data: courses, Meta: meta})
 	}
+
 }
 
 func makeUpdateEndpoint(s Service) Controller {
@@ -156,24 +161,30 @@ func makeUpdateEndpoint(s Service) Controller {
 			return
 		}
 
-		if body.FirstName != nil && *body.FirstName == "" {
+		if body.Name != nil && *body.Name == "" {
 			w.WriteHeader(400)
-			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Firstname is required"})
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Name is required"})
 			return
 		}
 
-		if body.LastName != nil && *body.LastName == "" {
+		if body.StartDate != nil && *body.StartDate == "" {
 			w.WriteHeader(400)
-			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "Lastname is required"})
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "StartDate is required"})
+			return
+		}
+
+		if body.EndDate != nil && *body.EndDate == "" {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(&Response{Status: 400, Error: "EndDate is required"})
 			return
 		}
 
 		path := mux.Vars(r)
 		id := path["id"]
 
-		if err := s.Update(id, body.FirstName, body.LastName, body.Email, body.Phone); err != nil {
+		if err := s.Update(id, body.Name, body.StartDate, body.EndDate); err != nil {
 			w.WriteHeader(404)
-			json.NewEncoder(w).Encode(&Response{Status: 404, Error: "User doesn't exists"})
+			json.NewEncoder(w).Encode(&Response{Status: 404, Error: err.Error()})
 			return
 		}
 
